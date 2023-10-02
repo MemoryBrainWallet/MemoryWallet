@@ -390,7 +390,7 @@
       }
 	 if(coin == 'xmr') { //MBW230626 
 		 phraseM = addresses.reducedMnemonic;//MBW230626
-         if (!set_phraseM) {
+         if (!set_phraseM && $('#xprime').val() == '') {
 		   DOM.phraseM.val(phraseM);
            set_phraseM = true;
 		 }		   
