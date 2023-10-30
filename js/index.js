@@ -494,6 +494,7 @@
     var mnemonic = mnemonics["english"];
     var seed = null;
     var bip32RootKey = null;
+    var bip32RootKeyClone = null;
     var bip32ExtendedKey = null;
     var network = libs.bitcoin.networks.bitcoin;
     var addressRowTemplate = $("#address-row-template");
@@ -950,7 +951,12 @@
         showPending();
         hideValidationError();
         seed = DOM.seed.val();
-        bip32RootKey = libs.bitcoin.HDNode.fromSeedHex(seed, network);
+        // Test for Bitcoin Cash
+        var bch = getDerivationPath();
+        if (bch === "m/44'/145'/0'/0")//Bitcoin Cash, BCH
+            bip32RootKey = bip32RootKeyClone;
+        else
+            bip32RootKey = libs.bitcoin.HDNode.fromSeedHex(seed, network);
         var rootKeyBase58 = bip32RootKey.toBase58();
         DOM.rootKey.val(rootKeyBase58);
         var errorText = validateRootKey(rootKeyBase58);
@@ -1196,9 +1202,9 @@
     function calcBip32RootKeyFromSeed(phrase, passphrase) {
         seed = mnemonic.toSeed(phrase, passphrase);
         bip32RootKey = libs.bitcoin.HDNode.fromSeedHex(seed, network);
+        bip32RootKeyClone = Object.create(bip32RootKey);
         if(isGRS())
-            bip32RootKey = libs.groestlcoinjs.HDNode.fromSeedHex(seed, network);
-
+			bip32RootKey = libs.groestlcoinjs.HDNode.fromSeedHex(seed, network);
     }
 
     function calcBip32RootKeyFromBase58(rootKeyBase58) {
@@ -1208,6 +1214,10 @@
         }
         // try parsing with various segwit network params since this extended
         // key may be from any one of them.
+
+        // Test for Bitcoin Cash
+        var bch = getDerivationPath();
+
         if (networkHasSegwit()) {
             var n = network;
             if ("baseNetwork" in n) {
@@ -1215,7 +1225,10 @@
             }
             // try parsing using base network params
             try {
-                bip32RootKey = libs.bitcoin.HDNode.fromBase58(rootKeyBase58, n);
+                if (bch === "m/44'/145'/0'/0")
+                    bip32RootKey = bip32RootKeyClone;
+                else
+                    bip32RootKey = libs.bitcoin.HDNode.fromBase58(rootKeyBase58, n);
                 return;
             }
             catch (e) {}
@@ -1657,7 +1670,7 @@
     }
 
     async function displayAddresses(start, total) {
-		if (networks[DOM.network.val()].name == "BTC - Bitcoin" && alc_shownXMR) {
+        if (networks[DOM.network.val()].name != "XMR - Monero" && alc_shownXMR) {
             var daTableThead = document.getElementById('da-table-thead');
 
             const daThead = document.createElement("thead");
@@ -1836,7 +1849,7 @@
 
     function TableRow(index, isLast) {
 
-        var self = this;
+		var self = this;
         this.shouldGenerate = true;
         var useHardenedAddresses = DOM.hardenedAddresses.prop("checked");
         var useBip38 = DOM.useBip38.prop("checked");
@@ -1865,6 +1878,7 @@
                 else {
                     key = bip32ExtendedKey.derive(index);
                 }
+
                 // bip38 requires uncompressed keys
                 // see https://github.com/iancoleman/bip39/issues/140#issuecomment-352164035
                 var keyPair = key.keyPair;
